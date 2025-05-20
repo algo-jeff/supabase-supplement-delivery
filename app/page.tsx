@@ -21,7 +21,7 @@ export default function Home() {
     supplementType: 'all'
   });
 
-  // 정렬 상태
+  // 정렬 상태 - 기본값을 미래 날짜가 위로 오도록 변경
   const [sortConfig, setSortConfig] = useState({
     key: 'delivery_date',
     direction: 'asc' // asc: 미래 날짜가 위로, desc: 과거 날짜가 위로
@@ -99,30 +99,34 @@ export default function Home() {
       if (key === 'delivery_date') {
         // null 또는 undefined 값을 처리
         if (!a[key] && !b[key]) return 0;
-        if (!a[key]) return direction === 'asc' ? 1 : -1;
-        if (!b[key]) return direction === 'asc' ? -1 : 1;
+        if (!a[key]) return 1; // null 값은 항상 아래로
+        if (!b[key]) return -1; // null 값은 항상 아래로
         
         const dateA = new Date(a[key]);
         const dateB = new Date(b[key]);
         
         // 유효하지 않은 날짜 처리
         if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-        if (isNaN(dateA.getTime())) return direction === 'asc' ? 1 : -1;
-        if (isNaN(dateB.getTime())) return direction === 'asc' ? -1 : 1;
+        if (isNaN(dateA.getTime())) return 1; // 유효하지 않은 날짜는 아래로
+        if (isNaN(dateB.getTime())) return -1; // 유효하지 않은 날짜는 아래로
         
-        // asc: 미래 날짜가 위로 (오늘 기준 큰 날짜가 위로)
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const diffA = dateA.getTime() - today.getTime();
         const diffB = dateB.getTime() - today.getTime();
         
-        // 미래 날짜는 위로, 과거 날짜는 아래로
-        if (diffA >= 0 && diffB < 0) return direction === 'asc' ? -1 : 1;
-        if (diffA < 0 && diffB >= 0) return direction === 'asc' ? 1 : -1;
+        // 미래 날짜와 과거 날짜 구분
+        if (diffA >= 0 && diffB < 0) return direction === 'asc' ? -1 : 1; // 미래 vs 과거
+        if (diffA < 0 && diffB >= 0) return direction === 'asc' ? 1 : -1; // 과거 vs 미래
         
-        // 둘 다 미래거나 둘 다 과거면 가까운 날짜가 위로
-        return direction === 'asc' 
-          ? dateA.getTime() - dateB.getTime() 
-          : dateB.getTime() - dateA.getTime();
+        // 둘 다 미래면, 가까운 날짜가 위로
+        if (diffA >= 0 && diffB >= 0) {
+          return direction === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+        }
+        
+        // 둘 다 과거면, 최근 날짜가 위로
+        return direction === 'asc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
       }
       
       // 일반 필드 정렬
@@ -155,8 +159,8 @@ export default function Home() {
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase();
       result = result.filter(item => 
-        item.recipient_name.toLowerCase().includes(searchLower) ||
-        item.supplement_type.toLowerCase().includes(searchLower) ||
+        (item.recipient_name && item.recipient_name.toLowerCase().includes(searchLower)) ||
+        (item.supplement_type && item.supplement_type.toLowerCase().includes(searchLower)) ||
         (item.invoice_number && item.invoice_number.toLowerCase().includes(searchLower))
       );
     }
@@ -178,6 +182,7 @@ export default function Home() {
     setFilteredDeliveries(sortedResult);
   }, [filters, deliveries, sortConfig]);
 
+  // 날짜 포맷팅
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -199,7 +204,10 @@ export default function Home() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    if (date.getTime() > today.getTime()) return 'future';
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.getTime() >= tomorrow.getTime()) return 'future';
     if (date.getTime() === today.getTime()) return 'today';
     return 'past';
   };
