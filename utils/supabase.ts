@@ -11,13 +11,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type SupplementDelivery = {
   id: number;
-  created_at?: string;
-  name: string;
-  email: string;
-  address: string;
-  supplement_name: string;
+  delivery_date?: string;
+  supplement_type: string;
+  recipient_name: string;
   quantity: number;
-  delivery_status: string;
-  tracking_number?: string;
-  notes?: string;
+  invoice_number?: string;
+  is_send: boolean;
 }
