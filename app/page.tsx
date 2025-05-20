@@ -12,20 +12,23 @@ export default function Home() {
     const fetchDeliveries = async () => {
       try {
         setLoading(true);
-        // 수정된 부분: created_at 대신 id로 정렬
+        console.log('Fetching data from Supabase...');
+        
+        // 정렬 없이 데이터 가져오기
         const { data, error } = await supabase
           .from('supplement_delivery')
-          .select('*')
-          .order('id', { ascending: false });
+          .select('*');
 
         if (error) {
+          console.error('Supabase error:', error);
           throw error;
         }
 
+        console.log('Fetched data:', data);
         setDeliveries(data || []);
       } catch (error) {
-        setError('Failed to fetch deliveries. Please check your Supabase connection.');
-        console.error('Error fetching data:', error);
+        console.error('Error details:', error);
+        setError('배송 데이터를 가져오는데 실패했습니다. Supabase 연결을 확인하세요.');
       } finally {
         setLoading(false);
       }
