@@ -12,10 +12,11 @@ export default function Home() {
     const fetchDeliveries = async () => {
       try {
         setLoading(true);
+        // 수정된 부분: created_at 대신 id로 정렬
         const { data, error } = await supabase
           .from('supplement_delivery')
           .select('*')
-          .order('delivery_date', { ascending: false });
+          .order('id', { ascending: false });
 
         if (error) {
           throw error;
