@@ -65,8 +65,12 @@ body {
   @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
 }
 
+.btn-sm {
+  @apply px-3 py-1.5 text-sm;
+}
+
 .table-container {
-  @apply overflow-hidden rounded-lg shadow-sm;
+  @apply overflow-x-auto overflow-y-hidden rounded-lg shadow-sm;
 }
 
 .dashboard-table {
@@ -111,4 +115,61 @@ body {
 
 .status-badge-pending {
   @apply bg-yellow-100 text-yellow-800;
+}
+
+.filter-panel {
+  @apply bg-white p-4 rounded-lg shadow-sm border border-gray-200 my-4 transition-all duration-200;
+}
+
+.filter-panel-hidden {
+  @apply hidden;
+}
+
+.form-group {
+  @apply mb-4;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.form-control {
+  @apply block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+}
+
+.form-select {
+  @apply block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+}
+
+.chip {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 mr-2 mb-2;
+}
+
+.chip-active {
+  @apply bg-indigo-100 text-indigo-800;
+}
+
+/* 반응형 헬퍼 클래스 */
+.hide-on-mobile {
+  @apply hidden md:block;
+}
+
+.show-on-mobile {
+  @apply block md:hidden;
+}
+
+@media (max-width: 640px) {
+  .dashboard-table th, 
+  .dashboard-table td {
+    @apply px-3 py-2;
+  }
+  
+  .dashboard-table th:nth-child(4),
+  .dashboard-table td:nth-child(4),
+  .dashboard-table th:nth-child(5),
+  .dashboard-table td:nth-child(5),
+  .dashboard-table th:nth-child(7),
+  .dashboard-table td:nth-child(7) {
+    @apply hidden sm:table-cell;
+  }
 }
