@@ -32,6 +32,9 @@ export default function Home() {
   // 필터 표시 여부
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
+  // 모바일 필터 패널 표시 여부
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
   // 고유한 영양제 타입 목록
   const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
 
@@ -167,6 +170,11 @@ export default function Home() {
     });
   };
 
+  // 모바일 필터 토글
+  const toggleMobileFilters = () => {
+    setShowMobileFilters(!showMobileFilters);
+  };
+
   // 필터 적용 함수
   useEffect(() => {
     let result = deliveries;
@@ -250,6 +258,40 @@ export default function Home() {
     return 'past';
   };
 
+  // 필터 칩 제거
+  const removeFilter = (filterType: string) => {
+    switch (filterType) {
+      case 'searchTerm':
+        setFilters({...filters, searchTerm: ''});
+        break;
+      case 'status':
+        setFilters({...filters, status: 'all'});
+        break;
+      case 'supplementType':
+        setFilters({...filters, supplementType: 'all'});
+        break;
+      case 'dateFrom':
+        setFilters({...filters, dateFrom: ''});
+        break;
+      case 'dateTo':
+        setFilters({...filters, dateTo: ''});
+        break;
+      default:
+        break;
+    }
+  };
+
+  // 활성 필터 수 계산
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.searchTerm) count++;
+    if (filters.status !== 'all') count++;
+    if (filters.supplementType !== 'all') count++;
+    if (filters.dateFrom) count++;
+    if (filters.dateTo) count++;
+    return count;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
       {/* 네비게이션 바 */}
@@ -320,7 +362,22 @@ export default function Home() {
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
               <h2 className="text-lg font-medium text-gray-900">영양제 배송 목록</h2>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+              
+              {/* 모바일용 필터 버튼 */}
+              <div className="flex md:hidden">
+                <button
+                  onClick={toggleMobileFilters}
+                  className="btn btn-secondary btn-sm flex items-center space-x-1"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  <span>필터 {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}</span>
+                </button>
+              </div>
+              
+              {/* 데스크톱용 필터 */}
+              <div className="hidden md:flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                 <div className="relative w-full sm:w-64">
                   <input
                     type="search"
@@ -359,8 +416,8 @@ export default function Home() {
               </div>
             </div>
             
-            {/* 고급 필터 토글 버튼 */}
-            <div className="flex justify-between mt-4">
+            {/* 고급 필터 토글 버튼 - 데스크톱 */}
+            <div className="hidden md:flex justify-between mt-4">
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -395,9 +452,9 @@ export default function Home() {
               </button>
             </div>
             
-            {/* 고급 필터 패널 */}
+            {/* 고급 필터 패널 - 데스크톱 */}
             {showAdvancedFilters && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="hidden md:block mt-4 pt-4 border-t border-gray-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">
@@ -424,6 +481,166 @@ export default function Home() {
                     />
                   </div>
                 </div>
+              </div>
+            )}
+            
+            {/* 모바일용 필터 패널 */}
+            {showMobileFilters && (
+              <div className="md:hidden mt-4 filter-panel">
+                <div className="form-group">
+                  <label htmlFor="mobileSearch" className="form-label">검색어</label>
+                  <input
+                    id="mobileSearch"
+                    type="search"
+                    placeholder="이름, 영양제, 송장번호 검색..."
+                    value={filters.searchTerm}
+                    onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="mobileStatus" className="form-label">배송 상태</label>
+                  <select
+                    id="mobileStatus"
+                    value={filters.status}
+                    onChange={(e) => setFilters({...filters, status: e.target.value})}
+                    className="form-select"
+                  >
+                    <option value="all">모든 상태</option>
+                    <option value="delivered">배송 완료</option>
+                    <option value="pending">배송 대기</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="mobileType" className="form-label">영양제 종류</label>
+                  <select
+                    id="mobileType"
+                    value={filters.supplementType}
+                    onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
+                    className="form-select"
+                  >
+                    <option value="all">모든 영양제</option>
+                    {supplementTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="mobileDateFrom" className="form-label">시작일</label>
+                  <input
+                    type="date"
+                    id="mobileDateFrom"
+                    value={filters.dateFrom}
+                    onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="mobileDateTo" className="form-label">종료일</label>
+                  <input
+                    type="date"
+                    id="mobileDateTo"
+                    value={filters.dateTo}
+                    onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                    className="form-control"
+                  />
+                </div>
+                
+                <div className="flex justify-between mt-4">
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    필터 초기화
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleMobileFilters}
+                    className="btn btn-primary btn-sm"
+                  >
+                    필터 적용
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* 활성 필터 태그 */}
+            {getActiveFilterCount() > 0 && (
+              <div className="mt-4 flex flex-wrap">
+                {filters.searchTerm && (
+                  <div className="chip">
+                    검색어: {filters.searchTerm}
+                    <button 
+                      onClick={() => removeFilter('searchTerm')}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.status !== 'all' && (
+                  <div className="chip">
+                    상태: {filters.status === 'delivered' ? '배송 완료' : '배송 대기'}
+                    <button 
+                      onClick={() => removeFilter('status')}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.supplementType !== 'all' && (
+                  <div className="chip">
+                    영양제: {filters.supplementType}
+                    <button 
+                      onClick={() => removeFilter('supplementType')}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.dateFrom && (
+                  <div className="chip">
+                    시작일: {new Date(filters.dateFrom).toLocaleDateString()}
+                    <button 
+                      onClick={() => removeFilter('dateFrom')}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.dateTo && (
+                  <div className="chip">
+                    종료일: {new Date(filters.dateTo).toLocaleDateString()}
+                    <button 
+                      onClick={() => removeFilter('dateTo')}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -502,7 +719,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('supplement_type')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('supplement_type')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         영양제 종류
                         {sortConfig.key === 'supplement_type' && (
@@ -512,7 +729,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('quantity')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('quantity')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         수량
                         {sortConfig.key === 'quantity' && (
@@ -532,7 +749,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('invoice_number')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('invoice_number')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         송장번호
                         {sortConfig.key === 'invoice_number' && (
@@ -573,8 +790,8 @@ export default function Home() {
                             )}
                           </span>
                         </td>
-                        <td>{delivery.supplement_type}</td>
-                        <td className="text-center">{delivery.quantity}</td>
+                        <td className="hidden sm:table-cell">{delivery.supplement_type}</td>
+                        <td className="text-center hidden sm:table-cell">{delivery.quantity}</td>
                         <td>
                           <span 
                             className={`status-badge ${
@@ -586,7 +803,7 @@ export default function Home() {
                             {delivery.is_send ? '배송 완료' : '배송 대기'}
                           </span>
                         </td>
-                        <td>{delivery.invoice_number || '-'}</td>
+                        <td className="hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
                         <td className="text-right text-sm font-medium">
                           <a href="#" className="text-indigo-600 hover:text-indigo-900">
                             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
