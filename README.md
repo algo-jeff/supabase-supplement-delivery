@@ -11,39 +11,19 @@ Supabase의 `supplement_delivery` 테이블 데이터를 표시하는 Next.js �
 
 ## 사전 준비사항
 
-시작하기 전에 Supabase 프로젝트를 설정해야 합니다:
-
-1. 계정이 없는 경우 [supabase.com](https://supabase.com)에서 Supabase 계정을 만듭니다
-2. 새 Supabase 프로젝트를 생성합니다
-3. Supabase 프로젝트에서 다음 스키마로 `supplement_delivery` 테이블을 생성합니다:
+Supabase 프로젝트가 이미 설정되어 있고, `supplement_delivery` 테이블이 다음 구조로 존재해야 합니다:
 
 ```sql
 CREATE TABLE supplement_delivery (
   id SERIAL PRIMARY KEY,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  address TEXT NOT NULL,
-  supplement_name TEXT NOT NULL,
-  quantity INTEGER NOT NULL,
-  delivery_status TEXT NOT NULL,
-  tracking_number TEXT,
-  notes TEXT
+  delivery_date DATE,
+  supplement_type TEXT,
+  recipient_name TEXT,
+  quantity INTEGER,
+  invoice_number TEXT,
+  is_send BOOLEAN
 );
 ```
-
-4. 샘플 데이터 삽입 (선택사항)
-
-```sql
-INSERT INTO supplement_delivery 
-  (name, email, address, supplement_name, quantity, delivery_status, tracking_number, notes) 
-VALUES 
-  ('김지원', 'jiwon@example.com', '서울시 강남구 테헤란로 123', '비타민 D3', 2, 'delivered', 'TRK12345', '정시 배송 완료'),
-  ('이민수', 'minsoo@example.com', '경기도 성남시 분당구 판교로 45', '오메가-3', 1, 'in_transit', 'TRK67890', '2일 내 배송 예정'),
-  ('박서연', 'seoyeon@example.com', '서울시 마포구 홍대입구로 55', '아연 보충제', 3, 'pending', NULL, '주문 처리 중');
-```
-
-5. 프로젝트 설정에서 Supabase URL과 익명 키를 가져옵니다
 
 ## Vercel 배포 방법
 
@@ -100,22 +80,32 @@ Vercel에 이 프로젝트를 배포하는 가장 쉬운 방법은 아래 버튼
 
 5. 브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 결과를 확인합니다.
 
+## Supabase 권한 설정
+
+Supabase 테이블에 접근 권한을 부여하려면:
+
+1. [Supabase 대시보드](https://app.supabase.com)에 로그인합니다
+2. 프로젝트를 선택합니다
+3. 왼쪽 메뉴에서 "SQL Editor"를 클릭합니다
+4. 새 쿼리 생성 버튼을 클릭합니다
+5. 아래 SQL 코드를 복사해서 붙여넣기:
+
+```sql
+-- RLS 정책 설정
+ALTER TABLE supplement_delivery ENABLE ROW LEVEL SECURITY;
+
+-- 모든 사용자에게 읽기 권한 부여
+CREATE POLICY "Enable read access for all users" ON supplement_delivery 
+FOR SELECT USING (true);
+```
+
+6. "Run" 버튼을 클릭하여 실행합니다
+
 ## 커스터마이징
 
 - 테이블 스키마가 다른 경우 `utils/supabase.ts`를 수정합니다
 - 데이터 표시 방식을 변경하려면 `app/page.tsx`에서 UI를 편집합니다
 - 필요에 따라 더 많은 페이지나 기능을 추가합니다
-
-## Supabase 설정 방법
-
-제공된 Supabase 정보로 이미 환경 변수가 설정되어 있습니다. 실제 테이블을 생성하려면:
-
-1. [Supabase 대시보드](https://app.supabase.com)에 로그인합니다.
-2. 제공된 프로젝트로 이동합니다.
-3. 왼쪽 메뉴에서 "SQL Editor"를 클릭합니다.
-4. 이 저장소의 `supabase/schema.sql` 파일 내용을 복사하여 SQL 편집기에 붙여넣고 실행합니다.
-5. 테이블이 생성되고 샘플 데이터가 삽입됩니다.
-6. "Table Editor"에서 supplement_delivery 테이블을 선택하여 데이터가 제대로 들어갔는지 확인합니다.
 
 ## 더 알아보기
 
