@@ -87,7 +87,7 @@ export default function Home() {
         });
 
         // 고유한 영양제 타입 추출
-        const types = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
+        const types: string[] = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
         setSupplementTypes(types);
       } catch (error: any) {
         console.error('Error details:', error);
