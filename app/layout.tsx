@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Supplement Delivery Tracker',
-  description: 'A simple app to track supplement deliveries using Supabase',
+  title: '영양제 배송 관리 시스템',
+  description: 'Supabase로 구현한 영양제 배송 관리 시스템',
 };
 
 export default function RootLayout({
@@ -12,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="ko">
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
