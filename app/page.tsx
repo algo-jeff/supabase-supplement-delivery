@@ -77,7 +77,7 @@ export default function Home() {
         
         // 통계 계산
         const total = data.length;
-        const delivered = data.filter(item => item.is_send).length;
+        const delivered = data.filter((item: SupplementDelivery) => item.is_send).length;
         const pending = total - delivered;
         
         setStats({
@@ -87,7 +87,7 @@ export default function Home() {
         });
 
         // 고유한 영양제 타입 추출
-        const types = Array.from(new Set(data.map(item => item.supplement_type)));
+        const types = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
         setSupplementTypes(types);
       } catch (error: any) {
         console.error('Error details:', error);
