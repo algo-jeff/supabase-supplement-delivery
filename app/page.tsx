@@ -18,7 +18,9 @@ export default function Home() {
   const [filters, setFilters] = useState({
     searchTerm: '',
     status: 'all', // 'all', 'delivered', 'pending'
-    supplementType: 'all'
+    supplementType: 'all',
+    dateFrom: '',
+    dateTo: ''
   });
 
   // 정렬 상태 - 기본값을 미래 날짜가 위로 오도록 변경
@@ -26,6 +28,9 @@ export default function Home() {
     key: 'delivery_date',
     direction: 'asc' // asc: 미래 날짜가 위로, desc: 과거 날짜가 위로
   });
+
+  // 필터 표시 여부
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // 고유한 영양제 타입 목록
   const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
@@ -151,6 +156,17 @@ export default function Home() {
     setFilteredDeliveries(sortDeliveries(filteredDeliveries, key, direction));
   };
 
+  // 필터 초기화 함수
+  const resetFilters = () => {
+    setFilters({
+      searchTerm: '',
+      status: 'all',
+      supplementType: 'all',
+      dateFrom: '',
+      dateTo: ''
+    });
+  };
+
   // 필터 적용 함수
   useEffect(() => {
     let result = deliveries;
@@ -174,6 +190,28 @@ export default function Home() {
     // 영양제 타입 필터
     if (filters.supplementType !== 'all') {
       result = result.filter(item => item.supplement_type === filters.supplementType);
+    }
+    
+    // 날짜 범위 필터 (시작일)
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      result = result.filter(item => {
+        if (!item.delivery_date) return false;
+        const itemDate = new Date(item.delivery_date);
+        return itemDate >= fromDate;
+      });
+    }
+    
+    // 날짜 범위 필터 (종료일)
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      result = result.filter(item => {
+        if (!item.delivery_date) return false;
+        const itemDate = new Date(item.delivery_date);
+        return itemDate <= toDate;
+      });
     }
     
     // 정렬 적용
@@ -320,6 +358,74 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            
+            {/* 고급 필터 토글 버튼 */}
+            <div className="flex justify-between mt-4">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
+              >
+                {showAdvancedFilters ? (
+                  <>
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    고급 필터 숨기기
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    고급 필터 표시
+                  </>
+                )}
+              </button>
+              
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                필터 초기화
+              </button>
+            </div>
+            
+            {/* 고급 필터 패널 */}
+            {showAdvancedFilters && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">
+                      시작일
+                    </label>
+                    <input
+                      type="date"
+                      id="dateFrom"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                      className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">
+                      종료일
+                    </label>
+                    <input
+                      type="date"
+                      id="dateTo"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                      className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {loading && (
