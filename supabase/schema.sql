@@ -15,6 +15,13 @@ CREATE TABLE IF NOT EXISTS supplement_delivery (
   notes TEXT
 );
 
+-- 테이블에 대한 RLS(Row Level Security) 활성화
+ALTER TABLE supplement_delivery ENABLE ROW LEVEL SECURITY;
+
+-- 모든 사용자에게 읽기 권한 부여하는 RLS 정책 추가
+CREATE POLICY "Enable read access for all users" ON supplement_delivery 
+FOR SELECT USING (true);
+
 -- 샘플 데이터 삽입
 INSERT INTO supplement_delivery 
   (name, email, address, supplement_name, quantity, delivery_status, tracking_number, notes) 
