@@ -5,6 +5,7 @@ import { supabase, SupplementDelivery } from '../utils/supabase';
 
 export default function Home() {
   const [deliveries, setDeliveries] = useState<SupplementDelivery[]>([]);
+  const [filteredDeliveries, setFilteredDeliveries] = useState<SupplementDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -12,6 +13,22 @@ export default function Home() {
     delivered: 0,
     pending: 0
   });
+
+  // 필터 상태
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    status: 'all', // 'all', 'delivered', 'pending'
+    supplementType: 'all'
+  });
+
+  // 정렬 상태
+  const [sortConfig, setSortConfig] = useState({
+    key: 'delivery_date',
+    direction: 'asc' // asc: 미래 날짜가 위로, desc: 과거 날짜가 위로
+  });
+
+  // 고유한 영양제 타입 목록
+  const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchDeliveries = async () => {
@@ -44,7 +61,11 @@ export default function Home() {
           throw new Error('데이터를 찾을 수 없습니다');
         }
 
-        setDeliveries(data);
+        // 기본 정렬: 배송일 미래 우선 (날짜가 없는 항목은 맨 아래로)
+        const sortedData = sortDeliveries(data, 'delivery_date', 'asc');
+        
+        setDeliveries(sortedData);
+        setFilteredDeliveries(sortedData);
         
         // 통계 계산
         const total = data.length;
@@ -56,6 +77,10 @@ export default function Home() {
           delivered,
           pending
         });
+
+        // 고유한 영양제 타입 추출
+        const types = Array.from(new Set(data.map(item => item.supplement_type)));
+        setSupplementTypes(types);
       } catch (error: any) {
         console.error('Error details:', error);
         setError('배송 데이터를 가져오는데 실패했습니다. Supabase 연결을 확인하세요.');
@@ -67,6 +92,92 @@ export default function Home() {
     fetchDeliveries();
   }, []);
 
+  // 정렬 함수
+  const sortDeliveries = (data: SupplementDelivery[], key: string, direction: string) => {
+    return [...data].sort((a: any, b: any) => {
+      // 날짜 필드에 대한 특별 처리
+      if (key === 'delivery_date') {
+        // null 또는 undefined 값을 처리
+        if (!a[key] && !b[key]) return 0;
+        if (!a[key]) return direction === 'asc' ? 1 : -1;
+        if (!b[key]) return direction === 'asc' ? -1 : 1;
+        
+        const dateA = new Date(a[key]);
+        const dateB = new Date(b[key]);
+        
+        // 유효하지 않은 날짜 처리
+        if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+        if (isNaN(dateA.getTime())) return direction === 'asc' ? 1 : -1;
+        if (isNaN(dateB.getTime())) return direction === 'asc' ? -1 : 1;
+        
+        // asc: 미래 날짜가 위로 (오늘 기준 큰 날짜가 위로)
+        const today = new Date();
+        const diffA = dateA.getTime() - today.getTime();
+        const diffB = dateB.getTime() - today.getTime();
+        
+        // 미래 날짜는 위로, 과거 날짜는 아래로
+        if (diffA >= 0 && diffB < 0) return direction === 'asc' ? -1 : 1;
+        if (diffA < 0 && diffB >= 0) return direction === 'asc' ? 1 : -1;
+        
+        // 둘 다 미래거나 둘 다 과거면 가까운 날짜가 위로
+        return direction === 'asc' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      }
+      
+      // 일반 필드 정렬
+      if (a[key] < b[key]) {
+        return direction === 'asc' ? -1 : 1;
+      }
+      if (a[key] > b[key]) {
+        return direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  // 정렬 핸들러
+  const handleSort = (key: string) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    
+    setSortConfig({ key, direction });
+    setFilteredDeliveries(sortDeliveries(filteredDeliveries, key, direction));
+  };
+
+  // 필터 적용 함수
+  useEffect(() => {
+    let result = deliveries;
+    
+    // 검색어 필터
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      result = result.filter(item => 
+        item.recipient_name.toLowerCase().includes(searchLower) ||
+        item.supplement_type.toLowerCase().includes(searchLower) ||
+        (item.invoice_number && item.invoice_number.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // 상태 필터
+    if (filters.status !== 'all') {
+      const isDelivered = filters.status === 'delivered';
+      result = result.filter(item => item.is_send === isDelivered);
+    }
+    
+    // 영양제 타입 필터
+    if (filters.supplementType !== 'all') {
+      result = result.filter(item => item.supplement_type === filters.supplementType);
+    }
+    
+    // 정렬 적용
+    const sortedResult = sortDeliveries(result, sortConfig.key, sortConfig.direction);
+    
+    setFilteredDeliveries(sortedResult);
+  }, [filters, deliveries, sortConfig]);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -77,6 +188,20 @@ export default function Home() {
           month: 'long',
           day: 'numeric'
         });
+  };
+
+  // 날짜 상태 계산 (미래/과거)
+  const getDateStatus = (dateString?: string) => {
+    if (!dateString) return 'none';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'none';
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (date.getTime() > today.getTime()) return 'future';
+    if (date.getTime() === today.getTime()) return 'today';
+    return 'past';
   };
 
   return (
@@ -147,13 +272,15 @@ export default function Home() {
         {/* 메인 콘텐츠 */}
         <div className="card">
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
               <h2 className="text-lg font-medium text-gray-900">영양제 배송 목록</h2>
-              <div className="flex items-center space-x-3">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <div className="relative w-full sm:w-64">
                   <input
                     type="search"
                     placeholder="검색..."
+                    value={filters.searchTerm}
+                    onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -162,12 +289,27 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <button className="btn btn-secondary flex items-center">
-                  <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  필터
-                </button>
+                <div className="flex space-x-2 w-full sm:w-auto">
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({...filters, status: e.target.value})}
+                    className="form-select block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="all">모든 상태</option>
+                    <option value="delivered">배송 완료</option>
+                    <option value="pending">배송 대기</option>
+                  </select>
+                  <select
+                    value={filters.supplementType}
+                    onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
+                    className="form-select block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="all">모든 영양제</option>
+                    {supplementTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -198,66 +340,150 @@ export default function Home() {
             </div>
           )}
 
-          {!loading && !error && deliveries.length === 0 && (
+          {!loading && !error && filteredDeliveries.length === 0 && (
             <div className="py-12 text-center">
               <svg className="h-12 w-12 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 12H4M4 12V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2m8-10v10m-4-5h8" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">배송 데이터가 없습니다</h3>
-              <p className="mt-1 text-sm text-gray-500">Supabase 데이터베이스에 데이터가 있는지 확인하세요.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">검색 조건에 맞는 배송 데이터가 없습니다</h3>
+              <p className="mt-1 text-sm text-gray-500">필터를 조정하거나 새 배송을 추가하세요.</p>
               <div className="mt-6">
                 <button className="btn btn-primary">새 배송 추가</button>
               </div>
             </div>
           )}
 
-          {!loading && !error && deliveries.length > 0 && (
+          {!loading && !error && filteredDeliveries.length > 0 && (
             <div className="table-container">
               <table className="dashboard-table">
                 <thead>
                   <tr>
-                    <th scope="col">ID</th>
-                    <th scope="col">수령인</th>
-                    <th scope="col">배송일</th>
-                    <th scope="col">영양제 종류</th>
-                    <th scope="col">수량</th>
-                    <th scope="col">상태</th>
-                    <th scope="col">송장번호</th>
+                    <th scope="col" onClick={() => handleSort('id')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        ID
+                        {sortConfig.key === 'id' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('recipient_name')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        수령인
+                        {sortConfig.key === 'recipient_name' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('delivery_date')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        배송일
+                        {sortConfig.key === 'delivery_date' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('supplement_type')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        영양제 종류
+                        {sortConfig.key === 'supplement_type' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('quantity')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        수량
+                        {sortConfig.key === 'quantity' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('is_send')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        상태
+                        {sortConfig.key === 'is_send' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('invoice_number')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        송장번호
+                        {sortConfig.key === 'invoice_number' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
                     <th scope="col" className="relative">
                       <span className="sr-only">수정</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {deliveries.map((delivery, idx) => (
-                    <tr key={delivery.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="font-medium text-gray-900">{delivery.id}</td>
-                      <td>{delivery.recipient_name}</td>
-                      <td>{formatDate(delivery.delivery_date)}</td>
-                      <td>{delivery.supplement_type}</td>
-                      <td className="text-center">{delivery.quantity}</td>
-                      <td>
-                        <span 
-                          className={`status-badge ${
-                            delivery.is_send 
-                              ? 'status-badge-delivered' 
-                              : 'status-badge-pending'
-                          }`}
-                        >
-                          {delivery.is_send ? '배송 완료' : '배송 대기'}
-                        </span>
-                      </td>
-                      <td>{delivery.invoice_number || '-'}</td>
-                      <td className="text-right text-sm font-medium">
-                        <a href="#" className="text-indigo-600 hover:text-indigo-900">
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                          <span className="sr-only">수정</span>
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredDeliveries.map((delivery, idx) => {
+                    const dateStatus = getDateStatus(delivery.delivery_date);
+                    return (
+                      <tr key={delivery.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="font-medium text-gray-900">{delivery.id}</td>
+                        <td>{delivery.recipient_name}</td>
+                        <td>
+                          <span className={`
+                            ${dateStatus === 'future' ? 'text-blue-700 font-medium' : ''}
+                            ${dateStatus === 'today' ? 'text-green-700 font-medium' : ''}
+                            ${dateStatus === 'past' ? 'text-gray-500' : ''}
+                          `}>
+                            {formatDate(delivery.delivery_date)}
+                            {dateStatus === 'future' && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                예정
+                              </span>
+                            )}
+                            {dateStatus === 'today' && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                오늘
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td>{delivery.supplement_type}</td>
+                        <td className="text-center">{delivery.quantity}</td>
+                        <td>
+                          <span 
+                            className={`status-badge ${
+                              delivery.is_send 
+                                ? 'status-badge-delivered' 
+                                : 'status-badge-pending'
+                            }`}
+                          >
+                            {delivery.is_send ? '배송 완료' : '배송 대기'}
+                          </span>
+                        </td>
+                        <td>{delivery.invoice_number || '-'}</td>
+                        <td className="text-right text-sm font-medium">
+                          <a href="#" className="text-indigo-600 hover:text-indigo-900">
+                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                            <span className="sr-only">수정</span>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               
@@ -266,7 +492,7 @@ export default function Home() {
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm text-gray-700">
-                      전체 <span className="font-medium">{deliveries.length}</span> 항목 중 <span className="font-medium">1</span> - <span className="font-medium">{deliveries.length}</span> 표시
+                      전체 <span className="font-medium">{deliveries.length}</span> 항목 중 <span className="font-medium">{filteredDeliveries.length}</span> 항목 표시
                     </p>
                   </div>
                   <div>
