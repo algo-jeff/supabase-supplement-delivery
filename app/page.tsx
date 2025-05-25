@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, SupplementDelivery } from '../utils/supabase';
+import AddDeliveryModal from '@/components/AddDeliveryModal';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import { updateDeliveryStatus } from './actions';
 
 export default function Home() {
   const [deliveries, setDeliveries] = useState<SupplementDelivery[]>([]);
@@ -13,6 +16,11 @@ export default function Home() {
     delivered: 0,
     pending: 0
   });
+
+  // 모달 상태
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: number; name: string} | null>(null);
 
   // 필터 상태
   const [filters, setFilters] = useState({
@@ -38,65 +46,65 @@ export default function Home() {
   // 고유한 영양제 타입 목록
   const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchDeliveries = async () => {
-      try {
-        setLoading(true);
-        
-        // 3가지 방법으로 데이터 가져오기 시도
-        const { data: tableData, error: tableError } = await supabase
-          .from('supplement_delivery')
-          .select('*');
+  const fetchDeliveries = async () => {
+    try {
+      setLoading(true);
+      
+      // 3가지 방법으로 데이터 가져오기 시도
+      const { data: tableData, error: tableError } = await supabase
+        .from('supplement_delivery')
+        .select('*');
 
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_supplement_deliveries');
-        
-        const { data: sqlData, error: sqlError } = await supabase
-          .from('supplement_delivery')
-          .select('id, recipient_name, delivery_date, supplement_type, quantity, is_send, invoice_number');
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_supplement_deliveries');
+      
+      const { data: sqlData, error: sqlError } = await supabase
+        .from('supplement_delivery')
+        .select('id, recipient_name, delivery_date, supplement_type, quantity, is_send, invoice_number');
 
-        let data;
-        if (tableData && tableData.length > 0) {
-          data = tableData;
-        } else if (rpcData && rpcData.length > 0) {
-          data = rpcData;
-        } else if (sqlData && sqlData.length > 0) {
-          data = sqlData;
-        } else {
-          if (tableError) throw tableError;
-          if (rpcError) throw rpcError;
-          if (sqlError) throw sqlError;
-          throw new Error('데이터를 찾을 수 없습니다');
-        }
-
-        // 기본 정렬: 배송일 미래 우선 (날짜가 없는 항목은 맨 아래로)
-        const sortedData = sortDeliveries(data, 'delivery_date', 'asc');
-        
-        setDeliveries(sortedData);
-        setFilteredDeliveries(sortedData);
-        
-        // 통계 계산
-        const total = data.length;
-        const delivered = data.filter((item: SupplementDelivery) => item.is_send).length;
-        const pending = total - delivered;
-        
-        setStats({
-          total,
-          delivered,
-          pending
-        });
-
-        // 고유한 영양제 타입 추출
-        const types: string[] = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
-        setSupplementTypes(types);
-      } catch (error: any) {
-        console.error('Error details:', error);
-        setError('배송 데이터를 가져오는데 실패했습니다. Supabase 연결을 확인하세요.');
-      } finally {
-        setLoading(false);
+      let data;
+      if (tableData && tableData.length > 0) {
+        data = tableData;
+      } else if (rpcData && rpcData.length > 0) {
+        data = rpcData;
+      } else if (sqlData && sqlData.length > 0) {
+        data = sqlData;
+      } else {
+        if (tableError) throw tableError;
+        if (rpcError) throw rpcError;
+        if (sqlError) throw sqlError;
+        throw new Error('데이터를 찾을 수 없습니다');
       }
-    };
 
+      // 기본 정렬: 배송일 미래 우선 (날짜가 없는 항목은 맨 아래로)
+      const sortedData = sortDeliveries(data, 'delivery_date', 'asc');
+      
+      setDeliveries(sortedData);
+      setFilteredDeliveries(sortedData);
+      
+      // 통계 계산
+      const total = data.length;
+      const delivered = data.filter((item: SupplementDelivery) => item.is_send).length;
+      const pending = total - delivered;
+      
+      setStats({
+        total,
+        delivered,
+        pending
+      });
+
+      // 고유한 영양제 타입 추출
+      const types: string[] = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
+      setSupplementTypes(types);
+    } catch (error: any) {
+      console.error('Error details:', error);
+      setError('배송 데이터를 가져오는데 실패했습니다. Supabase 연결을 확인하세요.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDeliveries();
   }, []);
 
@@ -157,6 +165,22 @@ export default function Home() {
     
     setSortConfig({ key, direction });
     setFilteredDeliveries(sortDeliveries(filteredDeliveries, key, direction));
+  };
+
+  // 상태 토글 핸들러
+  const handleStatusToggle = async (id: number, currentStatus: boolean) => {
+    try {
+      await updateDeliveryStatus(id, !currentStatus);
+      await fetchDeliveries();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  };
+
+  // 삭제 핸들러
+  const handleDeleteClick = (id: number, name: string) => {
+    setDeleteTarget({ id, name });
+    setShowDeleteModal(true);
   };
 
   // 필터 초기화 함수
@@ -307,7 +331,12 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center">
-              <button className="btn btn-primary">새 배송 추가</button>
+              <button 
+                onClick={() => setShowAddModal(true)}
+                className="btn btn-primary"
+              >
+                새 배송 추가
+              </button>
             </div>
           </div>
         </div>
@@ -679,7 +708,12 @@ export default function Home() {
               <h3 className="mt-2 text-sm font-medium text-gray-900">검색 조건에 맞는 배송 데이터가 없습니다</h3>
               <p className="mt-1 text-sm text-gray-500">필터를 조정하거나 새 배송을 추가하세요.</p>
               <div className="mt-6">
-                <button className="btn btn-primary">새 배송 추가</button>
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="btn btn-primary"
+                >
+                  새 배송 추가
+                </button>
               </div>
             </div>
           )}
@@ -760,7 +794,7 @@ export default function Home() {
                       </div>
                     </th>
                     <th scope="col" className="relative">
-                      <span className="sr-only">수정</span>
+                      <span className="sr-only">작업</span>
                     </th>
                   </tr>
                 </thead>
@@ -793,24 +827,28 @@ export default function Home() {
                         <td className="hidden sm:table-cell">{delivery.supplement_type}</td>
                         <td className="text-center hidden sm:table-cell">{delivery.quantity}</td>
                         <td>
-                          <span 
-                            className={`status-badge ${
+                          <button
+                            onClick={() => handleStatusToggle(delivery.id, delivery.is_send)}
+                            className={`status-badge cursor-pointer ${
                               delivery.is_send 
                                 ? 'status-badge-delivered' 
                                 : 'status-badge-pending'
                             }`}
                           >
                             {delivery.is_send ? '배송 완료' : '배송 대기'}
-                          </span>
+                          </button>
                         </td>
                         <td className="hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
                         <td className="text-right text-sm font-medium">
-                          <a href="#" className="text-indigo-600 hover:text-indigo-900">
+                          <button 
+                            onClick={() => handleDeleteClick(delivery.id, delivery.recipient_name)}
+                            className="text-red-600 hover:text-red-900"
+                          >
                             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                             </svg>
-                            <span className="sr-only">수정</span>
-                          </a>
+                            <span className="sr-only">삭제</span>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -851,6 +889,24 @@ export default function Home() {
           )}
         </div>
       </main>
+      
+      {/* 모달 */}
+      <AddDeliveryModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={fetchDeliveries}
+      />
+      
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        deliveryId={deleteTarget?.id || null}
+        recipientName={deleteTarget?.name || ''}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onSuccess={fetchDeliveries}
+      />
       
       {/* 푸터 */}
       <footer className="bg-white mt-10">
