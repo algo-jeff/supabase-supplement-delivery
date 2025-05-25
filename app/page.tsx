@@ -35,10 +35,10 @@ export default function Home() {
     dateTo: ''
   });
 
-  // 정렬 상태 - 기본값을 미래 날짜가 위로 오도록 변경
+  // 정렬 상태 - 기본값을 ID 내림차순으로 변경 (최신 순)
   const [sortConfig, setSortConfig] = useState({
-    key: 'delivery_date',
-    direction: 'asc' // asc: 미래 날짜가 위로, desc: 과거 날짜가 위로
+    key: 'id',
+    direction: 'desc' // desc: 큰 ID가 위로 (최신 순)
   });
 
   // 필터 표시 여부
@@ -91,8 +91,8 @@ export default function Home() {
         throw new Error('데이터를 찾을 수 없습니다');
       }
 
-      // 기본 정렬: 배송일 미래 우선 (날짜가 없는 항목은 맨 아래로)
-      const sortedData = sortDeliveries(data, 'delivery_date', 'asc');
+      // 기본 정렬: ID 내림차순 (최신 순)
+      const sortedData = sortDeliveries(data, 'id', 'desc');
       
       setDeliveries(sortedData);
       setFilteredDeliveries(sortedData);
@@ -131,6 +131,13 @@ export default function Home() {
   // 정렬 함수
   const sortDeliveries = (data: SupplementDelivery[], key: string, direction: string) => {
     return [...data].sort((a: any, b: any) => {
+      // ID 필드에 대한 특별 처리 (숫자 정렬)
+      if (key === 'id') {
+        const idA = Number(a[key]) || 0;
+        const idB = Number(b[key]) || 0;
+        return direction === 'asc' ? idA - idB : idB - idA;
+      }
+      
       // 날짜 필드에 대한 특별 처리
       if (key === 'delivery_date') {
         // null 또는 undefined 값을 처리
@@ -165,11 +172,28 @@ export default function Home() {
         return direction === 'asc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
       }
       
-      // 일반 필드 정렬
-      if (a[key] < b[key]) {
+      // 수량 필드에 대한 특별 처리 (숫자 정렬)
+      if (key === 'quantity') {
+        const qtyA = Number(a[key]) || 0;
+        const qtyB = Number(b[key]) || 0;
+        return direction === 'asc' ? qtyA - qtyB : qtyB - qtyA;
+      }
+      
+      // 불린 필드에 대한 특별 처리 (is_send)
+      if (key === 'is_send') {
+        const boolA = a[key] ? 1 : 0;
+        const boolB = b[key] ? 1 : 0;
+        return direction === 'asc' ? boolA - boolB : boolB - boolA;
+      }
+      
+      // 일반 문자열 필드 정렬
+      const valueA = (a[key] || '').toString().toLowerCase();
+      const valueB = (b[key] || '').toString().toLowerCase();
+      
+      if (valueA < valueB) {
         return direction === 'asc' ? -1 : 1;
       }
-      if (a[key] > b[key]) {
+      if (valueA > valueB) {
         return direction === 'asc' ? 1 : -1;
       }
       return 0;
