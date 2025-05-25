@@ -462,7 +462,7 @@ export default function Home() {
                     placeholder="검색..."
                     value={filters.searchTerm}
                     onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
-                    className="form-control pl-10"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                   />
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -470,32 +470,11 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
-                <div className="flex space-x-2 w-full sm:w-auto">
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                    className="form-select"
-                  >
-                    <option value="all">모든 상태</option>
-                    <option value="delivered">배송 완료</option>
-                    <option value="pending">배송 대기</option>
-                  </select>
-                  <select
-                    value={filters.supplementType}
-                    onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
-                    className="form-select"
-                  >
-                    <option value="all">모든 영양제</option>
-                    {supplementTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
             </div>
             
-            {/* 고급 필터 토글 버튼 - 데스크톱 */}
-            <div className="hidden md:flex justify-between mt-4">
+            {/* 고급 필터 토글 버튼과 필터 드롭다운 - 데스크톱 */}
+            <div className="hidden md:flex justify-between items-center mt-4">
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
@@ -518,16 +497,38 @@ export default function Home() {
                 )}
               </button>
               
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
-              >
-                <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                필터 초기화
-              </button>
+              {/* 필터 드롭다운을 오른쪽에 배치 */}
+              <div className="flex space-x-3 items-center">
+                <select
+                  value={filters.status}
+                  onChange={(e) => setFilters({...filters, status: e.target.value})}
+                  className="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                >
+                  <option value="all">모든 상태</option>
+                  <option value="delivered">배송 완료</option>
+                  <option value="pending">배송 대기</option>
+                </select>
+                <select
+                  value={filters.supplementType}
+                  onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
+                  className="px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                >
+                  <option value="all">모든 영양제</option>
+                  {supplementTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-gray-600 hover:text-gray-800 text-sm flex items-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  필터 초기화
+                </button>
+              </div>
             </div>
             
             {/* 고급 필터 패널 - 데스크톱 */}
@@ -535,7 +536,7 @@ export default function Home() {
               <div className="hidden md:block mt-4 pt-4 border-t border-gray-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="dateFrom" className="form-label">
+                    <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-700 mb-1">
                       시작일
                     </label>
                     <input
@@ -543,11 +544,11 @@ export default function Home() {
                       id="dateFrom"
                       value={filters.dateFrom}
                       onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
-                      className="form-control"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
-                    <label htmlFor="dateTo" className="form-label">
+                    <label htmlFor="dateTo" className="block text-sm font-medium text-gray-700 mb-1">
                       종료일
                     </label>
                     <input
@@ -555,7 +556,7 @@ export default function Home() {
                       id="dateTo"
                       value={filters.dateTo}
                       onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
-                      className="form-control"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
@@ -564,27 +565,27 @@ export default function Home() {
             
             {/* 모바일용 필터 패널 */}
             {showMobileFilters && (
-              <div className="md:hidden filter-panel">
+              <div className="md:hidden mt-4 pt-4 border-t border-gray-200">
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="mobileSearch" className="form-label">검색어</label>
+                    <label htmlFor="mobileSearch" className="block text-sm font-medium text-gray-700 mb-1">검색어</label>
                     <input
                       id="mobileSearch"
                       type="search"
                       placeholder="이름, 영양제, 송장번호 검색..."
                       value={filters.searchTerm}
                       onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
-                      className="form-control"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="mobileStatus" className="form-label">배송 상태</label>
+                    <label htmlFor="mobileStatus" className="block text-sm font-medium text-gray-700 mb-1">배송 상태</label>
                     <select
                       id="mobileStatus"
                       value={filters.status}
                       onChange={(e) => setFilters({...filters, status: e.target.value})}
-                      className="form-select"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="all">모든 상태</option>
                       <option value="delivered">배송 완료</option>
@@ -593,12 +594,12 @@ export default function Home() {
                   </div>
                   
                   <div>
-                    <label htmlFor="mobileType" className="form-label">영양제 종류</label>
+                    <label htmlFor="mobileType" className="block text-sm font-medium text-gray-700 mb-1">영양제 종류</label>
                     <select
                       id="mobileType"
                       value={filters.supplementType}
                       onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
-                      className="form-select"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="all">모든 영양제</option>
                       {supplementTypes.map(type => (
@@ -608,24 +609,24 @@ export default function Home() {
                   </div>
                   
                   <div>
-                    <label htmlFor="mobileDateFrom" className="form-label">시작일</label>
+                    <label htmlFor="mobileDateFrom" className="block text-sm font-medium text-gray-700 mb-1">시작일</label>
                     <input
                       type="date"
                       id="mobileDateFrom"
                       value={filters.dateFrom}
                       onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
-                      className="form-control"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="mobileDateTo" className="form-label">종료일</label>
+                    <label htmlFor="mobileDateTo" className="block text-sm font-medium text-gray-700 mb-1">종료일</label>
                     <input
                       type="date"
                       id="mobileDateTo"
                       value={filters.dateTo}
                       onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
-                      className="form-control"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   
@@ -633,14 +634,14 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="btn btn-secondary btn-sm"
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                     >
                       필터 초기화
                     </button>
                     <button
                       type="button"
                       onClick={toggleMobileFilters}
-                      className="btn btn-primary btn-sm"
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200"
                     >
                       필터 적용
                     </button>
@@ -653,13 +654,13 @@ export default function Home() {
             {getActiveFilterCount() > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {filters.searchTerm && (
-                  <div className="chip chip-active">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     검색어: {filters.searchTerm}
                     <button 
                       onClick={() => removeFilter('searchTerm')}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                      className="ml-2 text-indigo-600 hover:text-indigo-800"
                     >
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
@@ -667,13 +668,13 @@ export default function Home() {
                 )}
                 
                 {filters.status !== 'all' && (
-                  <div className="chip chip-active">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     상태: {filters.status === 'delivered' ? '배송 완료' : '배송 대기'}
                     <button 
                       onClick={() => removeFilter('status')}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                      className="ml-2 text-indigo-600 hover:text-indigo-800"
                     >
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
@@ -681,13 +682,13 @@ export default function Home() {
                 )}
                 
                 {filters.supplementType !== 'all' && (
-                  <div className="chip chip-active">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     영양제: {filters.supplementType}
                     <button 
                       onClick={() => removeFilter('supplementType')}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                      className="ml-2 text-indigo-600 hover:text-indigo-800"
                     >
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
@@ -695,13 +696,13 @@ export default function Home() {
                 )}
                 
                 {filters.dateFrom && (
-                  <div className="chip chip-active">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     시작일: {new Date(filters.dateFrom).toLocaleDateString()}
                     <button 
                       onClick={() => removeFilter('dateFrom')}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                      className="ml-2 text-indigo-600 hover:text-indigo-800"
                     >
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
@@ -709,13 +710,13 @@ export default function Home() {
                 )}
                 
                 {filters.dateTo && (
-                  <div className="chip chip-active">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
                     종료일: {new Date(filters.dateTo).toLocaleDateString()}
                     <button 
                       onClick={() => removeFilter('dateTo')}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                      className="ml-2 text-indigo-600 hover:text-indigo-800"
                     >
-                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
