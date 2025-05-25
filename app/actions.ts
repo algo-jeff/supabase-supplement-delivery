@@ -44,6 +44,11 @@ export async function login(formData: FormData) {
 export async function logout() {
   const cookieStore = await cookies();
   cookieStore.delete('auth-session');
+  
+  // 페이지 재검증으로 세션 상태 업데이트
+  revalidatePath('/');
+  revalidatePath('/login');
+  
   redirect('/login');
 }
 
