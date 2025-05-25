@@ -337,9 +337,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-10">
       {/* 네비게이션 바 */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -364,7 +364,7 @@ export default function Home() {
               )}
               <button 
                 onClick={() => setShowAddModal(true)}
-                className="btn btn-primary"
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
               >
                 새 배송 추가
               </button>
@@ -375,53 +375,47 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 rounded-md bg-indigo-100 p-3">
-                <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-              </div>
-              <div className="ml-5">
-                <div className="text-sm font-medium text-gray-500">총 배송</div>
-                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.total}</div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-12">
+          <div className="relative">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">총 배송</p>
+                  <p className="text-3xl font-bold mt-2">{stats.total}</p>
+                </div>
+                <div className="text-4xl opacity-80">📦</div>
               </div>
             </div>
           </div>
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 rounded-md bg-green-100 p-3">
-                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="ml-5">
-                <div className="text-sm font-medium text-gray-500">배송 완료</div>
-                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.delivered}</div>
+          <div className="relative">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">배송 완료</p>
+                  <p className="text-3xl font-bold mt-2">{stats.delivered}</p>
+                </div>
+                <div className="text-4xl opacity-80">✅</div>
               </div>
             </div>
           </div>
-          <div className="card p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 rounded-md bg-yellow-100 p-3">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-5">
-                <div className="text-sm font-medium text-gray-500">배송 대기</div>
-                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.pending}</div>
+          <div className="relative">
+            <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">배송 대기</p>
+                  <p className="text-3xl font-bold mt-2">{stats.pending}</p>
+                </div>
+                <div className="text-4xl opacity-80">⏳</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* 메인 콘텐츠 */}
-        <div className="card">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-              <h2 className="text-lg font-medium text-gray-900">영양제 배송 목록</h2>
+              <h2 className="text-lg font-semibold text-gray-900">영양제 배송 목록</h2>
               
               {/* 모바일용 필터 버튼 */}
               <div className="flex md:hidden">
@@ -743,7 +737,7 @@ export default function Home() {
               <div className="mt-6">
                 <button 
                   onClick={() => setShowAddModal(true)}
-                  className="btn btn-primary"
+                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
                 >
                   새 배송 추가
                 </button>
@@ -752,11 +746,11 @@ export default function Home() {
           )}
 
           {!loading && !error && filteredDeliveries.length > 0 && (
-            <div className="table-container">
-              <table className="dashboard-table">
-                <thead>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" onClick={() => handleSort('id')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('id')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                       <div className="flex items-center">
                         ID
                         {sortConfig.key === 'id' && (
@@ -766,7 +760,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('recipient_name')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('recipient_name')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                       <div className="flex items-center">
                         수령인
                         {sortConfig.key === 'recipient_name' && (
@@ -776,7 +770,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('delivery_date')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('delivery_date')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                       <div className="flex items-center">
                         배송일
                         {sortConfig.key === 'delivery_date' && (
@@ -786,7 +780,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('supplement_type')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                    <th scope="col" onClick={() => handleSort('supplement_type')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         영양제 종류
                         {sortConfig.key === 'supplement_type' && (
@@ -796,7 +790,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('quantity')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                    <th scope="col" onClick={() => handleSort('quantity')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         수량
                         {sortConfig.key === 'quantity' && (
@@ -806,7 +800,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('is_send')} className="cursor-pointer hover:bg-gray-100">
+                    <th scope="col" onClick={() => handleSort('is_send')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                       <div className="flex items-center">
                         상태
                         {sortConfig.key === 'is_send' && (
@@ -816,7 +810,7 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" onClick={() => handleSort('invoice_number')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                    <th scope="col" onClick={() => handleSort('invoice_number')} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
                       <div className="flex items-center">
                         송장번호
                         {sortConfig.key === 'invoice_number' && (
@@ -826,22 +820,22 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" className="relative">
+                    <th scope="col" className="relative px-6 py-3">
                       <span className="sr-only">작업</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {filteredDeliveries.map((delivery, idx) => {
                     const dateStatus = getDateStatus(delivery.delivery_date);
                     return (
-                      <tr key={delivery.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="font-medium text-gray-900">{delivery.id}</td>
-                        <td>{delivery.recipient_name}</td>
-                        <td>
+                      <tr key={delivery.id} className="hover:bg-gray-50 transition-colors duration-150">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{delivery.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{delivery.recipient_name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <span className={`
-                            ${dateStatus === 'future' ? 'text-blue-700 font-medium' : ''}
-                            ${dateStatus === 'today' ? 'text-green-700 font-medium' : ''}
+                            ${dateStatus === 'future' ? 'text-blue-600 font-medium' : ''}
+                            ${dateStatus === 'today' ? 'text-green-600 font-medium' : ''}
                             ${dateStatus === 'past' ? 'text-gray-500' : ''}
                           `}>
                             {formatDate(delivery.delivery_date)}
@@ -857,25 +851,25 @@ export default function Home() {
                             )}
                           </span>
                         </td>
-                        <td className="hidden sm:table-cell">{delivery.supplement_type}</td>
-                        <td className="text-center hidden sm:table-cell">{delivery.quantity}</td>
-                        <td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{delivery.supplement_type}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center hidden sm:table-cell">{delivery.quantity}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => handleStatusToggle(delivery.id, delivery.is_send)}
-                            className={`status-badge cursor-pointer ${
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors duration-200 ${
                               delivery.is_send 
-                                ? 'status-badge-delivered' 
-                                : 'status-badge-pending'
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
                             }`}
                           >
                             {delivery.is_send ? '배송 완료' : '배송 대기'}
                           </button>
                         </td>
-                        <td className="hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
-                        <td className="text-right text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button 
                             onClick={() => handleDeleteClick(delivery.id, delivery.recipient_name)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
                           >
                             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -888,36 +882,6 @@ export default function Home() {
                   })}
                 </tbody>
               </table>
-              
-              {/* 페이지네이션 */}
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      전체 <span className="font-medium">{deliveries.length}</span> 항목 중 <span className="font-medium">{filteredDeliveries.length}</span> 항목 표시
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                      <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                        <span className="sr-only">이전</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </a>
-                      <a href="#" aria-current="page" className="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
-                        1
-                      </a>
-                      <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                        <span className="sr-only">다음</span>
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </a>
-                    </nav>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -942,7 +906,7 @@ export default function Home() {
       />
       
       {/* 푸터 */}
-      <footer className="bg-white mt-10">
+      <footer className="bg-white/80 backdrop-blur-md mt-10 border-t border-gray-200/50">
         <div className="max-w-7xl mx-auto py-6 px-4 overflow-hidden sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500">
             &copy; 2025 영양제 배송 관리 시스템. 모든 권리 보유.
