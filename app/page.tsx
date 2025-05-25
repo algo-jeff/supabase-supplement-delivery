@@ -1,132 +1,296 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import TubelightNavbar from '@/components/TubelightNavbar';
-import LoadingPage from '@/components/LoadingPage';
-import FAQPage from '@/components/FAQPage';
-
-// Mock data for demonstration
-const mockDeliveries = [
-  {
-    id: 1,
-    recipient_name: "김철수",
-    delivery_date: "2025-05-30",
-    supplement_type: "비타민 D",
-    quantity: 30,
-    is_send: false,
-    invoice_number: "KR123456789"
-  },
-  {
-    id: 2,
-    recipient_name: "이영희",
-    delivery_date: "2025-05-28",
-    supplement_type: "오메가3",
-    quantity: 60,
-    is_send: true,
-    invoice_number: "KR987654321"
-  },
-  {
-    id: 3,
-    recipient_name: "박민수",
-    delivery_date: "2025-05-25",
-    supplement_type: "종합비타민",
-    quantity: 30,
-    is_send: true,
-    invoice_number: "KR456789123"
-  }
-];
-
-type ViewType = 'dashboard' | 'deliveries' | 'faq';
-
-interface SupplementDelivery {
-  id: number;
-  recipient_name: string;
-  delivery_date: string;
-  supplement_type: string;
-  quantity: number;
-  is_send: boolean;
-  invoice_number?: string;
-}
+import { supabase, SupplementDelivery } from '../utils/supabase';
+import AddDeliveryModal from '@/components/AddDeliveryModal';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import { updateDeliveryStatus, logout, getSession } from './actions';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
-  const [isLoading, setIsLoading] = useState(true);
-  const [deliveries, setDeliveries] = useState<SupplementDelivery[]>(mockDeliveries);
-
+  const [deliveries, setDeliveries] = useState<SupplementDelivery[]>([]);
+  const [filteredDeliveries, setFilteredDeliveries] = useState<SupplementDelivery[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const router = useRouter();
+  
   const [stats, setStats] = useState({
     total: 0,
     delivered: 0,
     pending: 0
   });
 
-  useEffect(() => {
-    // 로딩 페이지 표시 시간
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
+  // 모달 상태
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: number; name: string} | null>(null);
 
-    return () => clearTimeout(timer);
+  // 필터 상태
+  const [filters, setFilters] = useState({
+    searchTerm: '',
+    status: 'all', // 'all', 'delivered', 'pending'
+    supplementType: 'all',
+    dateFrom: '',
+    dateTo: ''
+  });
+
+  // 정렬 상태 - 기본값을 미래 날짜가 위로 오도록 변경
+  const [sortConfig, setSortConfig] = useState({
+    key: 'delivery_date',
+    direction: 'asc' // asc: 미래 날짜가 위로, desc: 과거 날짜가 위로
+  });
+
+  // 필터 표시 여부
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // 모바일 필터 패널 표시 여부
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // 고유한 영양제 타입 목록
+  const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
+
+  // 세션 확인
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session) {
+        setUserEmail(session.email);
+      }
+    };
+    checkSession();
   }, []);
 
-  useEffect(() => {
-    // 통계 계산
-    const total = deliveries.length;
-    const delivered = deliveries.filter(item => item.is_send).length;
-    const pending = total - delivered;
-    
-    setStats({
-      total,
-      delivered,
-      pending
-    });
-  }, [deliveries]);
+  const fetchDeliveries = async () => {
+    try {
+      setLoading(true);
+      
+      // 3가지 방법으로 데이터 가져오기 시도
+      const { data: tableData, error: tableError } = await supabase
+        .from('supplement_delivery')
+        .select('*');
 
-  const handleTabChange = (id: string) => {
-    setCurrentView(id as ViewType);
-  };
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_supplement_deliveries');
+      
+      const { data: sqlData, error: sqlError } = await supabase
+        .from('supplement_delivery')
+        .select('id, recipient_name, delivery_date, supplement_type, quantity, is_send, invoice_number');
 
-  const navItems = [
-    {
-      id: 'dashboard',
-      label: '대시보드',
-      icon: (
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
-    },
-    {
-      id: 'deliveries',
-      label: '배송 관리',
-      icon: (
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-      )
-    },
-    {
-      id: 'faq',
-      label: 'FAQ',
-      icon: (
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
+      let data;
+      if (tableData && tableData.length > 0) {
+        data = tableData;
+      } else if (rpcData && rpcData.length > 0) {
+        data = rpcData;
+      } else if (sqlData && sqlData.length > 0) {
+        data = sqlData;
+      } else {
+        if (tableError) throw tableError;
+        if (rpcError) throw rpcError;
+        if (sqlError) throw sqlError;
+        throw new Error('데이터를 찾을 수 없습니다');
+      }
+
+      // 기본 정렬: 배송일 미래 우선 (날짜가 없는 항목은 맨 아래로)
+      const sortedData = sortDeliveries(data, 'delivery_date', 'asc');
+      
+      setDeliveries(sortedData);
+      setFilteredDeliveries(sortedData);
+      
+      // 통계 계산
+      const total = data.length;
+      const delivered = data.filter((item: SupplementDelivery) => item.is_send).length;
+      const pending = total - delivered;
+      
+      setStats({
+        total,
+        delivered,
+        pending
+      });
+
+      // 고유한 영양제 타입 추출
+      const types: string[] = Array.from(new Set(data.map((item: SupplementDelivery) => item.supplement_type)));
+      setSupplementTypes(types);
+    } catch (error: any) {
+      console.error('Error details:', error);
+      setError('배송 데이터를 가져오는데 실패했습니다. Supabase 연결을 확인하세요.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+  useEffect(() => {
+    fetchDeliveries();
+  }, []);
+
+  // 로그아웃 핸들러
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // 정렬 함수
+  const sortDeliveries = (data: SupplementDelivery[], key: string, direction: string) => {
+    return [...data].sort((a: any, b: any) => {
+      // 날짜 필드에 대한 특별 처리
+      if (key === 'delivery_date') {
+        // null 또는 undefined 값을 처리
+        if (!a[key] && !b[key]) return 0;
+        if (!a[key]) return 1; // null 값은 항상 아래로
+        if (!b[key]) return -1; // null 값은 항상 아래로
+        
+        const dateA = new Date(a[key]);
+        const dateB = new Date(b[key]);
+        
+        // 유효하지 않은 날짜 처리
+        if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+        if (isNaN(dateA.getTime())) return 1; // 유효하지 않은 날짜는 아래로
+        if (isNaN(dateB.getTime())) return -1; // 유효하지 않은 날짜는 아래로
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const diffA = dateA.getTime() - today.getTime();
+        const diffB = dateB.getTime() - today.getTime();
+        
+        // 미래 날짜와 과거 날짜 구분
+        if (diffA >= 0 && diffB < 0) return direction === 'asc' ? -1 : 1; // 미래 vs 과거
+        if (diffA < 0 && diffB >= 0) return direction === 'asc' ? 1 : -1; // 과거 vs 미래
+        
+        // 둘 다 미래면, 가까운 날짜가 위로
+        if (diffA >= 0 && diffB >= 0) {
+          return direction === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+        }
+        
+        // 둘 다 과거면, 최근 날짜가 위로
+        return direction === 'asc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+      }
+      
+      // 일반 필드 정렬
+      if (a[key] < b[key]) {
+        return direction === 'asc' ? -1 : 1;
+      }
+      if (a[key] > b[key]) {
+        return direction === 'asc' ? 1 : -1;
+      }
+      return 0;
     });
   };
 
-  const getDateStatus = (dateString: string) => {
+  // 정렬 핸들러
+  const handleSort = (key: string) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    
+    setSortConfig({ key, direction });
+    setFilteredDeliveries(sortDeliveries(filteredDeliveries, key, direction));
+  };
+
+  // 상태 토글 핸들러
+  const handleStatusToggle = async (id: number, currentStatus: boolean) => {
+    try {
+      await updateDeliveryStatus(id, !currentStatus);
+      await fetchDeliveries();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
+  };
+
+  // 삭제 핸들러
+  const handleDeleteClick = (id: number, name: string) => {
+    setDeleteTarget({ id, name });
+    setShowDeleteModal(true);
+  };
+
+  // 필터 초기화 함수
+  const resetFilters = () => {
+    setFilters({
+      searchTerm: '',
+      status: 'all',
+      supplementType: 'all',
+      dateFrom: '',
+      dateTo: ''
+    });
+  };
+
+  // 모바일 필터 토글
+  const toggleMobileFilters = () => {
+    setShowMobileFilters(!showMobileFilters);
+  };
+
+  // 필터 적용 함수
+  useEffect(() => {
+    let result = deliveries;
+    
+    // 검색어 필터
+    if (filters.searchTerm) {
+      const searchLower = filters.searchTerm.toLowerCase();
+      result = result.filter(item => 
+        (item.recipient_name && item.recipient_name.toLowerCase().includes(searchLower)) ||
+        (item.supplement_type && item.supplement_type.toLowerCase().includes(searchLower)) ||
+        (item.invoice_number && item.invoice_number.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // 상태 필터
+    if (filters.status !== 'all') {
+      const isDelivered = filters.status === 'delivered';
+      result = result.filter(item => item.is_send === isDelivered);
+    }
+    
+    // 영양제 타입 필터
+    if (filters.supplementType !== 'all') {
+      result = result.filter(item => item.supplement_type === filters.supplementType);
+    }
+    
+    // 날짜 범위 필터 (시작일)
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      result = result.filter(item => {
+        if (!item.delivery_date) return false;
+        const itemDate = new Date(item.delivery_date);
+        return itemDate >= fromDate;
+      });
+    }
+    
+    // 날짜 범위 필터 (종료일)
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      result = result.filter(item => {
+        if (!item.delivery_date) return false;
+        const itemDate = new Date(item.delivery_date);
+        return itemDate <= toDate;
+      });
+    }
+    
+    // 정렬 적용
+    const sortedResult = sortDeliveries(result, sortConfig.key, sortConfig.direction);
+    
+    setFilteredDeliveries(sortedResult);
+  }, [filters, deliveries, sortConfig]);
+
+  // 날짜 포맷팅
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
     const date = new Date(dateString);
+    return isNaN(date.getTime()) 
+      ? dateString 
+      : date.toLocaleDateString('ko-KR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+  };
+
+  // 날짜 상태 계산 (미래/과거)
+  const getDateStatus = (dateString?: string) => {
+    if (!dateString) return 'none';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'none';
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -138,215 +302,653 @@ export default function Home() {
     return 'past';
   };
 
-  if (isLoading) {
-    return <LoadingPage isVisible={isLoading} onComplete={() => setIsLoading(false)} />;
-  }
+  // 필터 칩 제거
+  const removeFilter = (filterType: string) => {
+    switch (filterType) {
+      case 'searchTerm':
+        setFilters({...filters, searchTerm: ''});
+        break;
+      case 'status':
+        setFilters({...filters, status: 'all'});
+        break;
+      case 'supplementType':
+        setFilters({...filters, supplementType: 'all'});
+        break;
+      case 'dateFrom':
+        setFilters({...filters, dateFrom: ''});
+        break;
+      case 'dateTo':
+        setFilters({...filters, dateTo: ''});
+        break;
+      default:
+        break;
+    }
+  };
+
+  // 활성 필터 수 계산
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.searchTerm) count++;
+    if (filters.status !== 'all') count++;
+    if (filters.supplementType !== 'all') count++;
+    if (filters.dateFrom) count++;
+    if (filters.dateTo) count++;
+    return count;
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <AnimatePresence mode="wait">
-        {!isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="pb-20 pt-20"
-          >
-            {/* 상단 토글 네비게이션 바 */}
-            <TubelightNavbar
-              items={navItems}
-              onItemChange={handleTabChange}
-              defaultActive="dashboard"
-            />
-
-            {/* 메인 콘텐츠 */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <AnimatePresence mode="wait">
-                {currentView === 'dashboard' && (
-                  <motion.div
-                    key="dashboard"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {/* 헤더 */}
-                    <div className="text-center mb-12">
-                      <motion.h1
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-4xl md:text-5xl font-bold text-gray-900 mb-4"
-                      >
-                        영양제 배송 관리
-                      </motion.h1>
-                      <motion.p
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className="text-lg text-gray-600"
-                      >
-                        효율적인 배송 현황 관리 시스템
-                      </motion.p>
-                    </div>
-
-                    {/* 통계 카드 */}
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-12">
-                      {[
-                        {
-                          title: '총 배송',
-                          value: stats.total,
-                          icon: '📦',
-                          color: 'from-blue-500 to-indigo-600',
-                          delay: 0.1
-                        },
-                        {
-                          title: '배송 완료',
-                          value: stats.delivered,
-                          icon: '✅',
-                          color: 'from-green-500 to-emerald-600',
-                          delay: 0.2
-                        },
-                        {
-                          title: '배송 대기',
-                          value: stats.pending,
-                          icon: '⏳',
-                          color: 'from-yellow-500 to-orange-600',
-                          delay: 0.3
-                        }
-                      ].map((stat, index) => (
-                        <motion.div
-                          key={stat.title}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: stat.delay }}
-                          className="relative"
-                        >
-                          <div className={`bg-gradient-to-r ${stat.color} rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-white/80 text-sm font-medium">{stat.title}</p>
-                                <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                              </div>
-                              <div className="text-4xl opacity-80">{stat.icon}</div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-
-                    {/* 최근 배송 목록 */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                      className="bg-white rounded-2xl shadow-lg overflow-hidden"
-                    >
-                      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                        <h3 className="text-lg font-semibold text-gray-900">최근 배송 현황</h3>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">수령인</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">배송일</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">영양제</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {deliveries.map((delivery, index) => {
-                              const dateStatus = getDateStatus(delivery.delivery_date);
-                              return (
-                                <motion.tr
-                                  key={delivery.id}
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.5 + index * 0.1 }}
-                                  className="hover:bg-gray-50 transition-colors duration-150"
-                                >
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {delivery.recipient_name}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span className={`
-                                      ${dateStatus === 'future' ? 'text-blue-600 font-medium' : ''}
-                                      ${dateStatus === 'today' ? 'text-green-600 font-medium' : ''}
-                                      ${dateStatus === 'past' ? 'text-gray-500' : ''}
-                                    `}>
-                                      {formatDate(delivery.delivery_date)}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {delivery.supplement_type}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      delivery.is_send
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                      {delivery.is_send ? '배송 완료' : '배송 대기'}
-                                    </span>
-                                  </td>
-                                </motion.tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-
-                {currentView === 'deliveries' && (
-                  <motion.div
-                    key="deliveries"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-8"
-                  >
-                    <div className="text-center">
-                      <h1 className="text-4xl font-bold text-gray-900 mb-4">배송 관리</h1>
-                      <p className="text-lg text-gray-600">배송 현황을 상세히 관리하고 추적하세요</p>
-                    </div>
-                    
-                    <div className="bg-white rounded-2xl shadow-lg p-8">
-                      <div className="text-center py-16">
-                        <div className="mx-auto w-24 h-24 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mb-6">
-                          <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                          </svg>
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4">배송 관리 기능</h3>
-                        <p className="text-gray-600 max-w-2xl mx-auto">
-                          여기에서 전체 배송 관리 기능을 구현할 수 있습니다. 
-                          필터링, 정렬, 검색, 배송 상태 변경 등의 기능이 포함됩니다.
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {currentView === 'faq' && (
-                  <motion.div
-                    key="faq"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <FAQPage />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+    <div className="min-h-screen bg-gray-50 pb-10">
+      {/* 네비게이션 바 */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 flex items-center">
+                <svg className="h-8 w-8 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6v-2zm0 4h8v2H6v-2zm10 0h2v2h-2v-2zm-10-8h12v2H6V6z" />
+                </svg>
+                <span className="ml-2 text-xl font-bold text-gray-900">영양제 배송 관리</span>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="flex items-center space-x-4">
+              {userEmail && (
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-gray-600">{userEmail}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              )}
+              <button 
+                onClick={() => setShowAddModal(true)}
+                className="btn btn-primary"
+              >
+                새 배송 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 통계 카드 */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
+          <div className="card p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 rounded-md bg-indigo-100 p-3">
+                <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <div className="ml-5">
+                <div className="text-sm font-medium text-gray-500">총 배송</div>
+                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.total}</div>
+              </div>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 rounded-md bg-green-100 p-3">
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="ml-5">
+                <div className="text-sm font-medium text-gray-500">배송 완료</div>
+                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.delivered}</div>
+              </div>
+            </div>
+          </div>
+          <div className="card p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 rounded-md bg-yellow-100 p-3">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-5">
+                <div className="text-sm font-medium text-gray-500">배송 대기</div>
+                <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.pending}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 메인 콘텐츠 */}
+        <div className="card">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
+              <h2 className="text-lg font-medium text-gray-900">영양제 배송 목록</h2>
+              
+              {/* 모바일용 필터 버튼 */}
+              <div className="flex md:hidden">
+                <button
+                  onClick={toggleMobileFilters}
+                  className="btn btn-secondary btn-sm flex items-center space-x-1"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  <span>필터 {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}</span>
+                </button>
+              </div>
+              
+              {/* 데스크톱용 필터 */}
+              <div className="hidden md:flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="search"
+                    placeholder="검색..."
+                    value={filters.searchTerm}
+                    onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
+                    className="form-control pl-10"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex space-x-2 w-full sm:w-auto">
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({...filters, status: e.target.value})}
+                    className="form-select"
+                  >
+                    <option value="all">모든 상태</option>
+                    <option value="delivered">배송 완료</option>
+                    <option value="pending">배송 대기</option>
+                  </select>
+                  <select
+                    value={filters.supplementType}
+                    onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
+                    className="form-select"
+                  >
+                    <option value="all">모든 영양제</option>
+                    {supplementTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            {/* 고급 필터 토글 버튼 - 데스크톱 */}
+            <div className="hidden md:flex justify-between mt-4">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
+              >
+                {showAdvancedFilters ? (
+                  <>
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    고급 필터 숨기기
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    고급 필터 표시
+                  </>
+                )}
+              </button>
+              
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-gray-600 hover:text-gray-800 text-sm flex items-center"
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                필터 초기화
+              </button>
+            </div>
+            
+            {/* 고급 필터 패널 - 데스크톱 */}
+            {showAdvancedFilters && (
+              <div className="hidden md:block mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="dateFrom" className="form-label">
+                      시작일
+                    </label>
+                    <input
+                      type="date"
+                      id="dateFrom"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="dateTo" className="form-label">
+                      종료일
+                    </label>
+                    <input
+                      type="date"
+                      id="dateTo"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 모바일용 필터 패널 */}
+            {showMobileFilters && (
+              <div className="md:hidden filter-panel">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="mobileSearch" className="form-label">검색어</label>
+                    <input
+                      id="mobileSearch"
+                      type="search"
+                      placeholder="이름, 영양제, 송장번호 검색..."
+                      value={filters.searchTerm}
+                      onChange={(e) => setFilters({...filters, searchTerm: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="mobileStatus" className="form-label">배송 상태</label>
+                    <select
+                      id="mobileStatus"
+                      value={filters.status}
+                      onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      className="form-select"
+                    >
+                      <option value="all">모든 상태</option>
+                      <option value="delivered">배송 완료</option>
+                      <option value="pending">배송 대기</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="mobileType" className="form-label">영양제 종류</label>
+                    <select
+                      id="mobileType"
+                      value={filters.supplementType}
+                      onChange={(e) => setFilters({...filters, supplementType: e.target.value})}
+                      className="form-select"
+                    >
+                      <option value="all">모든 영양제</option>
+                      {supplementTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="mobileDateFrom" className="form-label">시작일</label>
+                    <input
+                      type="date"
+                      id="mobileDateFrom"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="mobileDateTo" className="form-label">종료일</label>
+                    <input
+                      type="date"
+                      id="mobileDateTo"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                      className="form-control"
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between mt-4">
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      필터 초기화
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleMobileFilters}
+                      className="btn btn-primary btn-sm"
+                    >
+                      필터 적용
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* 활성 필터 태그 */}
+            {getActiveFilterCount() > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {filters.searchTerm && (
+                  <div className="chip chip-active">
+                    검색어: {filters.searchTerm}
+                    <button 
+                      onClick={() => removeFilter('searchTerm')}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.status !== 'all' && (
+                  <div className="chip chip-active">
+                    상태: {filters.status === 'delivered' ? '배송 완료' : '배송 대기'}
+                    <button 
+                      onClick={() => removeFilter('status')}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.supplementType !== 'all' && (
+                  <div className="chip chip-active">
+                    영양제: {filters.supplementType}
+                    <button 
+                      onClick={() => removeFilter('supplementType')}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.dateFrom && (
+                  <div className="chip chip-active">
+                    시작일: {new Date(filters.dateFrom).toLocaleDateString()}
+                    <button 
+                      onClick={() => removeFilter('dateFrom')}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {filters.dateTo && (
+                  <div className="chip chip-active">
+                    종료일: {new Date(filters.dateTo).toLocaleDateString()}
+                    <button 
+                      onClick={() => removeFilter('dateTo')}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {loading && (
+            <div className="flex justify-center items-center h-64">
+              <svg className="animate-spin h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="ml-3 text-gray-600">로딩 중...</span>
+            </div>
+          )}
+          
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 m-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                  <p className="mt-1 text-xs text-red-600">Supabase 환경 변수 설정을 확인하세요.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && filteredDeliveries.length === 0 && (
+            <div className="py-12 text-center">
+              <svg className="h-12 w-12 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 12H4M4 12V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2v-2m8-10v10m-4-5h8" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">검색 조건에 맞는 배송 데이터가 없습니다</h3>
+              <p className="mt-1 text-sm text-gray-500">필터를 조정하거나 새 배송을 추가하세요.</p>
+              <div className="mt-6">
+                <button 
+                  onClick={() => setShowAddModal(true)}
+                  className="btn btn-primary"
+                >
+                  새 배송 추가
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && filteredDeliveries.length > 0 && (
+            <div className="table-container">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th scope="col" onClick={() => handleSort('id')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        ID
+                        {sortConfig.key === 'id' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('recipient_name')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        수령인
+                        {sortConfig.key === 'recipient_name' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('delivery_date')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        배송일
+                        {sortConfig.key === 'delivery_date' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('supplement_type')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                      <div className="flex items-center">
+                        영양제 종류
+                        {sortConfig.key === 'supplement_type' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('quantity')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                      <div className="flex items-center">
+                        수량
+                        {sortConfig.key === 'quantity' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('is_send')} className="cursor-pointer hover:bg-gray-100">
+                      <div className="flex items-center">
+                        상태
+                        {sortConfig.key === 'is_send' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" onClick={() => handleSort('invoice_number')} className="cursor-pointer hover:bg-gray-100 hidden sm:table-cell">
+                      <div className="flex items-center">
+                        송장번호
+                        {sortConfig.key === 'invoice_number' && (
+                          <svg className={`h-4 w-4 ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </th>
+                    <th scope="col" className="relative">
+                      <span className="sr-only">작업</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDeliveries.map((delivery, idx) => {
+                    const dateStatus = getDateStatus(delivery.delivery_date);
+                    return (
+                      <tr key={delivery.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="font-medium text-gray-900">{delivery.id}</td>
+                        <td>{delivery.recipient_name}</td>
+                        <td>
+                          <span className={`
+                            ${dateStatus === 'future' ? 'text-blue-700 font-medium' : ''}
+                            ${dateStatus === 'today' ? 'text-green-700 font-medium' : ''}
+                            ${dateStatus === 'past' ? 'text-gray-500' : ''}
+                          `}>
+                            {formatDate(delivery.delivery_date)}
+                            {dateStatus === 'future' && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                예정
+                              </span>
+                            )}
+                            {dateStatus === 'today' && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                오늘
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell">{delivery.supplement_type}</td>
+                        <td className="text-center hidden sm:table-cell">{delivery.quantity}</td>
+                        <td>
+                          <button
+                            onClick={() => handleStatusToggle(delivery.id, delivery.is_send)}
+                            className={`status-badge cursor-pointer ${
+                              delivery.is_send 
+                                ? 'status-badge-delivered' 
+                                : 'status-badge-pending'
+                            }`}
+                          >
+                            {delivery.is_send ? '배송 완료' : '배송 대기'}
+                          </button>
+                        </td>
+                        <td className="hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
+                        <td className="text-right text-sm font-medium">
+                          <button 
+                            onClick={() => handleDeleteClick(delivery.id, delivery.recipient_name)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            <span className="sr-only">삭제</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              
+              {/* 페이지네이션 */}
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      전체 <span className="font-medium">{deliveries.length}</span> 항목 중 <span className="font-medium">{filteredDeliveries.length}</span> 항목 표시
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span className="sr-only">이전</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                      <a href="#" aria-current="page" className="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                        1
+                      </a>
+                      <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span className="sr-only">다음</span>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+      
+      {/* 모달 */}
+      <AddDeliveryModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={fetchDeliveries}
+      />
+      
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        deliveryId={deleteTarget?.id || null}
+        recipientName={deleteTarget?.name || ''}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onSuccess={fetchDeliveries}
+      />
+      
+      {/* 푸터 */}
+      <footer className="bg-white mt-10">
+        <div className="max-w-7xl mx-auto py-6 px-4 overflow-hidden sm:px-6 lg:px-8">
+          <p className="text-center text-sm text-gray-500">
+            &copy; 2025 영양제 배송 관리 시스템. 모든 권리 보유.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
