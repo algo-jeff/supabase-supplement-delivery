@@ -9,7 +9,7 @@ interface AddDeliveryModalProps {
   onSuccess: () => void;
 }
 
-// 영양제 종류 옵션들
+// 영양제 종류 옵션들 - "기타" 제거
 const SUPPLEMENT_OPTIONS = [
   '오메가3',
   '비타민 B',
@@ -25,8 +25,7 @@ const SUPPLEMENT_OPTIONS = [
   '카테킨',
   '콜라겐',
   '칼슘',
-  '멜라토닌',
-  '기타'
+  '멜라토닌'
 ];
 
 export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeliveryModalProps) {
@@ -54,15 +53,6 @@ export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeli
   }, [isOpen]);
 
   const handleSupplementToggle = (supplement: string) => {
-    if (supplement === '기타') {
-      setShowCustomInput(!showCustomInput);
-      if (showCustomInput) {
-        setCustomSupplement('');
-        setSelectedSupplements(prev => prev.filter(s => s !== customSupplement));
-      }
-      return;
-    }
-
     setSelectedSupplements(prev => {
       if (prev.includes(supplement)) {
         return prev.filter(s => s !== supplement);
@@ -70,18 +60,6 @@ export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeli
         return [...prev, supplement];
       }
     });
-  };
-
-  const handleCustomSupplementChange = (value: string) => {
-    setCustomSupplement(value);
-    if (value.trim()) {
-      setSelectedSupplements(prev => {
-        const filtered = prev.filter(s => !prev.some(p => p.startsWith('기타:')));
-        return [...filtered, `기타: ${value.trim()}`];
-      });
-    } else {
-      setSelectedSupplements(prev => prev.filter(s => !s.startsWith('기타:')));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -150,18 +128,14 @@ export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeli
                     <label
                       key={supplement}
                       className={`flex items-center space-x-2 p-2 rounded cursor-pointer transition-colors ${
-                        selectedSupplements.includes(supplement) || 
-                        (supplement === '기타' && showCustomInput)
+                        selectedSupplements.includes(supplement)
                           ? 'bg-indigo-100 text-indigo-800' 
                           : 'hover:bg-gray-100'
                       }`}
                     >
                       <input
                         type="checkbox"
-                        checked={
-                          selectedSupplements.includes(supplement) || 
-                          (supplement === '기타' && showCustomInput)
-                        }
+                        checked={selectedSupplements.includes(supplement)}
                         onChange={() => handleSupplementToggle(supplement)}
                         className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
@@ -170,18 +144,6 @@ export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeli
                   ))}
                 </div>
               </div>
-              
-              {showCustomInput && (
-                <div className="mt-2">
-                  <input
-                    type="text"
-                    value={customSupplement}
-                    onChange={(e) => handleCustomSupplementChange(e.target.value)}
-                    placeholder="기타 영양제 이름을 입력하세요"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-              )}
               
               {selectedSupplements.length > 0 && (
                 <div className="mt-2">
@@ -196,10 +158,6 @@ export default function AddDeliveryModal({ isOpen, onClose, onSuccess }: AddDeli
                         <button
                           type="button"
                           onClick={() => {
-                            if (supplement.startsWith('기타:')) {
-                              setCustomSupplement('');
-                              setShowCustomInput(false);
-                            }
                             setSelectedSupplements(prev => prev.filter(s => s !== supplement));
                           }}
                           className="ml-1 text-indigo-600 hover:text-indigo-800"
