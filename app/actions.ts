@@ -1,12 +1,10 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 export async function addDelivery(formData: FormData) {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = await createClient();
 
   const delivery = {
     recipient_name: formData.get('recipient_name') as string,
@@ -29,8 +27,7 @@ export async function addDelivery(formData: FormData) {
 }
 
 export async function deleteDelivery(id: number) {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from('supplement_delivery')
@@ -45,8 +42,7 @@ export async function deleteDelivery(id: number) {
 }
 
 export async function updateDeliveryStatus(id: number, is_send: boolean) {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from('supplement_delivery')
