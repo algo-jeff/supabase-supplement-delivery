@@ -5,9 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-// 허용된 계정 정보
+// 허용된 계정 정보 (역할 포함)
 const ALLOWED_ACCOUNTS = [
-  { email: 'postman@algocare.me', password: 'post1234' }
+  { email: 'postman@algocare.me', password: 'post1234', role: 'admin' },
+  { email: 'postread@algocare.me', password: 'algoeat123', role: 'readonly' }
 ];
 
 export async function login(formData: FormData) {
@@ -15,17 +16,21 @@ export async function login(formData: FormData) {
   const password = formData.get('password') as string;
 
   // 허용된 계정인지 확인
-  const isAllowed = ALLOWED_ACCOUNTS.some(
-    account => account.email === email && account.password === password
+  const account = ALLOWED_ACCOUNTS.find(
+    acc => acc.email === email && acc.password === password
   );
 
-  if (!isAllowed) {
+  if (!account) {
     return { error: '이메일 또는 비밀번호가 올바르지 않습니다.' };
   }
 
-  // 간단한 세션 쿠키 설정
+  // 간단한 세션 쿠키 설정 (역할 포함)
   const cookieStore = await cookies();
-  cookieStore.set('auth-session', JSON.stringify({ email, authenticated: true }), {
+  cookieStore.set('auth-session', JSON.stringify({ 
+    email: account.email, 
+    role: account.role,
+    authenticated: true 
+  }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -63,6 +68,11 @@ export async function addDelivery(formData: FormData) {
     throw new Error('Unauthorized');
   }
 
+  // 읽기 전용 사용자는 추가 불가
+  if (session.role === 'readonly') {
+    throw new Error('읽기 전용 사용자는 데이터를 추가할 수 없습니다.');
+  }
+
   const supabase = await createClient();
 
   const delivery = {
@@ -91,6 +101,11 @@ export async function deleteDelivery(id: number) {
     throw new Error('Unauthorized');
   }
 
+  // 읽기 전용 사용자는 삭제 불가
+  if (session.role === 'readonly') {
+    throw new Error('읽기 전용 사용자는 데이터를 삭제할 수 없습니다.');
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -109,6 +124,11 @@ export async function updateDeliveryStatus(id: number, is_send: boolean) {
   const session = await getSession();
   if (!session) {
     throw new Error('Unauthorized');
+  }
+
+  // 읽기 전용 사용자는 수정 불가
+  if (session.role === 'readonly') {
+    throw new Error('읽기 전용 사용자는 데이터를 수정할 수 없습니다.');
   }
 
   const supabase = await createClient();
