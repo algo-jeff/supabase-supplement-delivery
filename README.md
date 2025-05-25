@@ -5,6 +5,9 @@ Supabase의 `supplement_delivery` 테이블 데이터를 표시하는 Next.js �
 ## 주요 기능
 
 - 영양제 배송 정보 표시
+- 배송 추가/삭제 기능
+- 배송 상태 토글 (배송 대기 ↔ 배송 완료)
+- 필터링 및 검색 기능
 - Supabase의 실시간 데이터
 - Tailwind CSS를 사용한 반응형 디자인
 - Vercel 간편 배포
@@ -97,6 +100,18 @@ ALTER TABLE supplement_delivery ENABLE ROW LEVEL SECURITY;
 -- 모든 사용자에게 읽기 권한 부여
 CREATE POLICY "Enable read access for all users" ON supplement_delivery 
 FOR SELECT USING (true);
+
+-- 모든 사용자에게 추가 권한 부여
+CREATE POLICY "Enable insert for all users" ON supplement_delivery 
+FOR INSERT WITH CHECK (true);
+
+-- 모든 사용자에게 업데이트 권한 부여
+CREATE POLICY "Enable update for all users" ON supplement_delivery 
+FOR UPDATE USING (true);
+
+-- 모든 사용자에게 삭제 권한 부여
+CREATE POLICY "Enable delete for all users" ON supplement_delivery 
+FOR DELETE USING (true);
 ```
 
 6. "Run" 버튼을 클릭하여 실행합니다
