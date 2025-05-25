@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, SupplementDelivery } from '../utils/supabase';
 import AddDeliveryModal from '@/components/AddDeliveryModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import SupplementInfoDialog from '@/components/SupplementInfoDialog';
 import { updateDeliveryStatus, logout, getSession } from './actions';
 import { useRouter } from 'next/navigation';
 
@@ -25,6 +26,7 @@ export default function Home() {
   // 모달 상태
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSupplementInfoDialog, setShowSupplementInfoDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{id: number; name: string} | null>(null);
 
   // 필터 상태
@@ -486,7 +488,18 @@ export default function Home() {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-              <h2 className="text-lg font-semibold text-gray-900">영양제 배송 목록</h2>
+              <div className="flex items-center space-x-3">
+                <h2 className="text-lg font-semibold text-gray-900">영양제 배송 목록</h2>
+                <button
+                  onClick={() => setShowSupplementInfoDialog(true)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  영양제 정보
+                </button>
+              </div>
               
               {/* 모바일용 필터 버튼 */}
               <div className="flex md:hidden">
@@ -996,6 +1009,12 @@ export default function Home() {
           />
         </>
       )}
+      
+      {/* 영양제 정보 다이얼로그 */}
+      <SupplementInfoDialog
+        isOpen={showSupplementInfoDialog}
+        onClose={() => setShowSupplementInfoDialog(false)}
+      />
       
       {/* 푸터 */}
       <footer className="bg-white/80 backdrop-blur-md mt-10 border-t border-gray-200/50">
