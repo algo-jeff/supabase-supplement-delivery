@@ -125,9 +125,19 @@ export default function Home() {
     fetchDeliveries();
   }, []);
 
-  // 로그아웃 핸들러
+  // 로그아웃 핸들러 개선
   const handleLogout = async () => {
-    await logout();
+    try {
+      // 로그아웃 처리
+      await logout();
+      
+      // 강제로 페이지 새로고침하여 완전한 로그아웃 보장
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+      // 에러가 발생해도 로그인 페이지로 리다이렉트
+      window.location.href = '/login';
+    }
   };
 
   // 정렬 함수
@@ -410,7 +420,7 @@ export default function Home() {
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
                   >
                     로그아웃
                   </button>
