@@ -13,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('admin'); // 사용자 역할 상태 추가
   const router = useRouter();
   
   const [stats, setStats] = useState({
@@ -56,6 +57,7 @@ export default function Home() {
       const session = await getSession();
       if (session) {
         setUserEmail(session.email);
+        setUserRole(session.role || 'admin'); // 역할 설정 (기본값: admin)
       }
     };
     checkSession();
@@ -211,20 +213,41 @@ export default function Home() {
     setFilteredDeliveries(sortDeliveries(filteredDeliveries, key, direction));
   };
 
-  // 상태 토글 핸들러
+  // 상태 토글 핸들러 (읽기 전용 사용자 제한)
   const handleStatusToggle = async (id: number, currentStatus: boolean) => {
+    if (userRole === 'readonly') {
+      alert('읽기 전용 사용자는 데이터를 수정할 수 없습니다.');
+      return;
+    }
+    
     try {
       await updateDeliveryStatus(id, !currentStatus);
       await fetchDeliveries();
     } catch (error) {
       console.error('Failed to update status:', error);
+      alert('상태 업데이트에 실패했습니다.');
     }
   };
 
-  // 삭제 핸들러
+  // 삭제 핸들러 (읽기 전용 사용자 제한)
   const handleDeleteClick = (id: number, name: string) => {
+    if (userRole === 'readonly') {
+      alert('읽기 전용 사용자는 데이터를 삭제할 수 없습니다.');
+      return;
+    }
+    
     setDeleteTarget({ id, name });
     setShowDeleteModal(true);
+  };
+
+  // 새 배송 추가 버튼 핸들러 (읽기 전용 사용자 제한)
+  const handleAddDeliveryClick = () => {
+    if (userRole === 'readonly') {
+      alert('읽기 전용 사용자는 데이터를 추가할 수 없습니다.');
+      return;
+    }
+    
+    setShowAddModal(true);
   };
 
   // 필터 초기화 함수
@@ -377,7 +400,14 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               {userEmail && (
                 <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600">{userEmail}</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">{userEmail}</span>
+                    {userRole === 'readonly' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        읽기 전용
+                      </span>
+                    )}
+                  </div>
                   <button
                     onClick={handleLogout}
                     className="text-sm text-gray-500 hover:text-gray-700"
@@ -386,9 +416,16 @@ export default function Home() {
                   </button>
                 </div>
               )}
+              {/* 읽기 전용 사용자는 추가 버튼 비활성화 */}
               <button 
-                onClick={() => setShowAddModal(true)}
-                className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
+                onClick={handleAddDeliveryClick}
+                disabled={userRole === 'readonly'}
+                className={`px-4 py-2 rounded-lg font-medium shadow-lg transition-all duration-200 ${
+                  userRole === 'readonly' 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700'
+                }`}
+                title={userRole === 'readonly' ? '읽기 전용 사용자는 데이터를 추가할 수 없습니다.' : ''}
               >
                 새 배송 추가
               </button>
@@ -759,14 +796,16 @@ export default function Home() {
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">검색 조건에 맞는 배송 데이터가 없습니다</h3>
               <p className="mt-1 text-sm text-gray-500">필터를 조정하거나 새 배송을 추가하세요.</p>
-              <div className="mt-6">
-                <button 
-                  onClick={() => setShowAddModal(true)}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
-                >
-                  새 배송 추가
-                </button>
-              </div>
+              {userRole !== 'readonly' && (
+                <div className="mt-6">
+                  <button 
+                    onClick={handleAddDeliveryClick}
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg"
+                  >
+                    새 배송 추가
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -845,9 +884,11 @@ export default function Home() {
                         )}
                       </div>
                     </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">작업</span>
-                    </th>
+                    {userRole !== 'readonly' && (
+                      <th scope="col" className="relative px-6 py-3">
+                        <span className="sr-only">작업</span>
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -879,29 +920,41 @@ export default function Home() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{delivery.supplement_type}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center hidden sm:table-cell">{delivery.quantity}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => handleStatusToggle(delivery.id, delivery.is_send)}
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors duration-200 ${
+                          {userRole === 'readonly' ? (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               delivery.is_send 
-                                ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                            }`}
-                          >
-                            {delivery.is_send ? '배송 완료' : '배송 대기'}
-                          </button>
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {delivery.is_send ? '배송 완료' : '배송 대기'}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleStatusToggle(delivery.id, delivery.is_send)}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors duration-200 ${
+                                delivery.is_send 
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                                  : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                              }`}
+                            >
+                              {delivery.is_send ? '배송 완료' : '배송 대기'}
+                            </button>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">{delivery.invoice_number || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button 
-                            onClick={() => handleDeleteClick(delivery.id, delivery.recipient_name)}
-                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                          >
-                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <span className="sr-only">삭제</span>
-                          </button>
-                        </td>
+                        {userRole !== 'readonly' && (
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button 
+                              onClick={() => handleDeleteClick(delivery.id, delivery.recipient_name)}
+                              className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                            >
+                              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              <span className="sr-only">삭제</span>
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -912,23 +965,27 @@ export default function Home() {
         </div>
       </main>
       
-      {/* 모달 */}
-      <AddDeliveryModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={fetchDeliveries}
-      />
-      
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        deliveryId={deleteTarget?.id || null}
-        recipientName={deleteTarget?.name || ''}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setDeleteTarget(null);
-        }}
-        onSuccess={fetchDeliveries}
-      />
+      {/* 모달 - 읽기 전용 사용자에게는 표시하지 않음 */}
+      {userRole !== 'readonly' && (
+        <>
+          <AddDeliveryModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onSuccess={fetchDeliveries}
+          />
+          
+          <DeleteConfirmModal
+            isOpen={showDeleteModal}
+            deliveryId={deleteTarget?.id || null}
+            recipientName={deleteTarget?.name || ''}
+            onClose={() => {
+              setShowDeleteModal(false);
+              setDeleteTarget(null);
+            }}
+            onSuccess={fetchDeliveries}
+          />
+        </>
+      )}
       
       {/* 푸터 */}
       <footer className="bg-white/80 backdrop-blur-md mt-10 border-t border-gray-200/50">
