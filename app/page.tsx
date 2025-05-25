@@ -4,13 +4,17 @@ import { useEffect, useState } from 'react';
 import { supabase, SupplementDelivery } from '../utils/supabase';
 import AddDeliveryModal from '@/components/AddDeliveryModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
-import { updateDeliveryStatus } from './actions';
+import { updateDeliveryStatus, logout, getSession } from './actions';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const [deliveries, setDeliveries] = useState<SupplementDelivery[]>([]);
   const [filteredDeliveries, setFilteredDeliveries] = useState<SupplementDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const router = useRouter();
+  
   const [stats, setStats] = useState({
     total: 0,
     delivered: 0,
@@ -45,6 +49,17 @@ export default function Home() {
 
   // 고유한 영양제 타입 목록
   const [supplementTypes, setSupplementTypes] = useState<string[]>([]);
+
+  // 세션 확인
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session) {
+        setUserEmail(session.email);
+      }
+    };
+    checkSession();
+  }, []);
 
   const fetchDeliveries = async () => {
     try {
@@ -107,6 +122,11 @@ export default function Home() {
   useEffect(() => {
     fetchDeliveries();
   }, []);
+
+  // 로그아웃 핸들러
+  const handleLogout = async () => {
+    await logout();
+  };
 
   // 정렬 함수
   const sortDeliveries = (data: SupplementDelivery[], key: string, direction: string) => {
@@ -330,7 +350,18 @@ export default function Home() {
                 <span className="ml-2 text-xl font-bold text-gray-900">영양제 배송 관리</span>
               </div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              {userEmail && (
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-gray-600">{userEmail}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              )}
               <button 
                 onClick={() => setShowAddModal(true)}
                 className="btn btn-primary"
