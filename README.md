@@ -28,6 +28,38 @@ CREATE TABLE supplement_delivery (
 );
 ```
 
+## 환경변수 설정
+
+### 필수 환경변수
+
+프로젝트를 실행하기 위해서는 다음 환경변수들이 필요합니다:
+
+| 변수명 | 설명 | 예시 |
+|--------|------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL | `https://your-project.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 익명 키 | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+
+### Supabase 키 확인 방법
+
+1. [Supabase 대시보드](https://app.supabase.com)에 로그인
+2. 프로젝트 선택
+3. 왼쪽 메뉴에서 "Settings" > "API" 클릭
+4. "Project URL"과 "anon public" 키를 복사
+
+### 로컬 개발용 환경변수 설정
+
+`.env.example` 파일을 `.env.local`로 복사하고 실제 값으로 변경:
+
+```bash
+cp .env.example .env.local
+```
+
+`.env.local` 파일 내용:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
 ## Vercel 배포 방법
 
 ### 방법 1: 원클릭 배포
@@ -66,11 +98,7 @@ Vercel에 이 프로젝트를 배포하는 가장 쉬운 방법은 아래 버튼
    pnpm install
    ```
 
-3. `.env.local` 파일 생성 (`.env.example`에서 복사)하고 Supabase 자격 증명을 추가:
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
+3. 환경변수 설정 (위의 "환경변수 설정" 섹션 참고)
 
 4. 개발 서버 실행
    ```bash
@@ -115,6 +143,13 @@ FOR DELETE USING (true);
 ```
 
 6. "Run" 버튼을 클릭하여 실행합니다
+
+## 보안 주의사항
+
+⚠️ **중요**: 
+- `.env.local` 파일은 Git에 커밋하지 마세요
+- `.gitignore`에 환경변수 파일들이 포함되어 있는지 확인하세요
+- 프로덕션 환경에서는 적절한 RLS 정책을 설정하세요
 
 ## 커스터마이징
 
